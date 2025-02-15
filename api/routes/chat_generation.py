@@ -64,6 +64,48 @@ animo_functions = {
     ]
 }
 
+def count_images_in_conversation(messages):
+    """
+    Count the total number of images in the conversation.
+    Returns a tuple of (total_count, list of image messages indices)
+    """
+    total_images = 0
+    image_message_indices = []
+    
+    for i, message in enumerate(messages):
+        if message.get("role") == "user" and isinstance(message.get("content"), list):
+            image_count = sum(1 for content in message["content"] if isinstance(content, dict) and content.get("type") == "image_url")
+            if image_count > 0:
+                total_images += image_count
+                image_message_indices.append(i)
+    
+    return total_images, image_message_indices
+
+def manage_conversation_images(messages, new_images_count, engine):
+    """
+    Manage the conversation to ensure we don't exceed image limits.
+    For OpenAI, we maintain only the last 50 images.
+    Returns the maximum number of new images we can add.
+    """
+    if engine != "openai":
+        return len(new_images_count)  # No limit for other engines
+        
+    MAX_IMAGES = 50
+    current_total, image_indices = count_images_in_conversation(messages)
+    
+    # If we already have too many images, remove old image messages
+    while current_total > 0 and current_total + new_images_count > MAX_IMAGES and image_indices:
+        oldest_image_idx = image_indices[0]
+        removed_message = messages.pop(oldest_image_idx)
+        # Recount images in the removed message
+        removed_images = sum(1 for content in removed_message["content"] 
+                           if isinstance(content, dict) and content.get("type") == "image_url")
+        current_total -= removed_images
+        # Update indices after removal
+        image_indices = [idx - 1 for idx in image_indices[1:]]  # Adjust remaining indices
+    
+    # Return how many new images we can add
+    return min(MAX_IMAGES - current_total, new_images_count)
 
 @chat_generation_bp.route("/v1/chat/generation", methods=["POST"])
 def generate_code_chat():
@@ -85,9 +127,37 @@ def generate_code_chat():
     scenes = data.get("scenes", [])
     project_title = data.get("projectTitle", "")
     engine = data.get("engine", "openai")
+    model = data.get("model", None)  # Optional model parameter
     selected_scenes = data.get("selectedScenes", [])
     is_for_platform = data.get("isForPlatform", False)
-    
+
+    # Define default models for each engine
+    ENGINE_DEFAULTS = {
+        "openai": "gpt-4o",
+        "anthropic": "claude-35-sonnet",
+        "deepseek": "r1"
+    }
+
+    # Validate and set the model based on engine
+    if engine not in ENGINE_DEFAULTS:
+        return jsonify({"error": f"Invalid engine. Must be one of: {', '.join(ENGINE_DEFAULTS.keys())}"}), 400
+
+    # If no model specified, use the default for the engine
+    if not model:
+        model = ENGINE_DEFAULTS[engine]
+
+    # Validate model based on engine
+    VALID_MODELS = {
+        "openai": ["gpt-4o", "o1-mini"],
+        "anthropic": ["claude-35-sonnet"],
+        "deepseek": ["r1"]
+    }
+
+    if model not in VALID_MODELS[engine]:
+        return jsonify({
+            "error": f"Invalid model '{model}' for engine '{engine}'. Valid models are: {', '.join(VALID_MODELS[engine])}"
+        }), 400
+
     if not messages and prompt:
         messages = [{"role": "user", "content": prompt}]
     
@@ -98,7 +168,7 @@ def generate_code_chat():
 
 # What the user can do?
 
-The user can create a new project, add scenes, and generate the video. You can help the user to generate the video by creating the code for the scenes. The user can add custom rules for you, can select a different aspect ratio, and can change the model (from OpenAI GPT-4o to Anthropic Claude 3.5 Sonnet).
+The user can create a new project, add scenes, and generate the video. You can help the user to generate the video by creating the code for the scenes. The user can add custom rules for you, can select a different aspect ratio, and can change the model (the models are: OpenAI GPT-4o, and Anthropic Claude 3.5 Sonnet).
 
 # Project
 
@@ -149,6 +219,38 @@ class GenScene(Scene):
 
 \`\`\`
 
+The following is an example of the code with a voiceover:
+
+\`\`\`
+from manim import *
+from manim_voiceover import VoiceoverScene
+from manim_voiceover.services.gtts import GTTSService
+from manim.scene.scene_file_writer import SceneFileWriter
+
+# Disable the creation of subcaption files only when using Text-to-Speech
+SceneFileWriter.write_subcaption_file = lambda *args, **kwargs: None
+
+class GenScene(VoiceoverScene):
+    def construct(self):
+        # Set the voiceover service to Google Text-to-Speech
+        self.set_speech_service(GTTSService())
+        
+        # Create a circle of color BLUE
+        c = Circle(color=BLUE)
+        c.move_to(ORIGIN)
+
+        # Voiceover with animation
+        with self.voiceover(
+            text="This circle is drawn as I speak.",
+            subcaption="What a cute circle! :)"
+        ) as tracker:
+            self.play(Create(c), run_time=tracker.duration)
+\`\`\`
+
+Let the user know that they can hear the audio of the voiceover by clicking on the "Animate" button.
+
+Remember the part of `from manim.scene.scene_file_writer import SceneFileWriter` `SceneFileWriter.write_subcaption_file = lambda *args, **kwargs: None` because it's important to not create a subcaption file.
+
 ## Rules of programming
 
 1. Always use comments to explain the next line of the code:
@@ -194,7 +296,27 @@ If `random_texture.jpg` is not provided, you should not use it. Otherwise the vi
 
 That message should appear after the code, as the last message of the conversation.
 
-6. Always use `GenScene` as the class name, unless the user asks for a different name. Use `GenScene` as the class name by default.
+6. If the user request a complex animation or an animation of a complex component, scene or object. Before generating the code, you need to think about it, these are some good examples to follow:
+
+- User: I want to animate a car.
+- Assistant (You): Okay, I need to generate Manim code for a car. Let me start by thinking about how to represent a car using Manim's shapes. A car typically has a body, wheels, windows, and maybe some details like headlights. Let's break it down into parts. First, the car body. Maybe a rectangle for the main part. Then a rounded rectangle or a polygon for the top part to make it look more like a car. I can use a Rectangle or RoundedRectangle class for the body. Maybe start with a rectangle and then add a trapezoid or something on top for the roof. Next, the wheels. Circles would work for wheels. I should place them at the bottom of the car body. Two circles on each side, maybe. To make them look like tires, perhaps add a smaller circle inside for the hubcap. Windows. The car probably has a front and rear window. Maybe two trapezoids or rectangles on top of the car body. Or combine them into a single shape with a line dividing them. Headlights and other details. Small circles or rectangles at the front and back.
+
+- User: Create a Solar System.
+- Assistant (You): Let's think about how to represent a Solar System using Manim's shapes. A Solar System typically has a Sun, planets, and maybe some details like moons. Let's break it down into parts. First, the Sun. Maybe a circle for the Sun. Then, the planets. Each planet is a circle, and they orbit around the Sun. Maybe start with the inner planets and then add the outer planets. Next, the moons. Each moon is a smaller circle that orbits around its planet. Also I should add a line to represent the orbit of each planet. The color of the planets should be different, and the color of the Sun should be yellow.
+
+7. Always use `GenScene` as the class name, unless the user asks for a different name. Use `GenScene` as the class name by default.
+
+## Rules of behaviour
+
+1. If the user just says Hello, or something like that, you should not generate any code. Just tell the user you are ready to help them. Show what you can do, suggest what you can do.
+
+2. Always be very kind, you can use words (in English, or translated to other languages) like:
+- You're right!...
+- That's awesome...
+- Yes, I think I can do that!...
+- Ah! That's true!, sorry...
+
+3. If the user have a question you can't answer about Animo (the platform animo.video), you can tell them to send a message to team@animo.video with a clear description of the question or problem. Tell them we're back to them in less than 24 hours.
 
 # Manim Library
 {manimDocs}
@@ -745,7 +867,6 @@ from math import *
                             yield f'{function_result_obj}\n'
                         else:
                             pass
-                            # yield json.dumps(function_response)
 
                         # Only create and send image_message if there are images
                         if result_json.get("images"):
@@ -757,13 +878,22 @@ from math import *
                                         "type": "text",
                                         "text": """ASSISTANT_MESSAGE_PREVIEW_GENERATED: This message is not generated by the user, but automatically by you, the assistant when firing the `get_preview` function, this message might not be visible to the user.
                                         
-                                        The following images are the frames of the animation generated. Please check all the frames and follow the rules: Text should not be overlapping, the space should be used efficiently, use different colors to represent different objects, plus other improvements you can think of.
+                                        The following images are selected frames of the animation generated. Please check these frames and follow the rules: Text should not be overlapping, the space should be used efficiently, use different colors to represent different objects, plus other improvements you can think of.
                                         
                                         You can decide now if you want to iterate on the animation (if it's too complex), or just stop here and provide the final code to the user now."""
                                     }
                                 ]
                             }
-                            for image in result_json["images"]:
+
+                            # Calculate how many new images we can add
+                            available_slots = manage_conversation_images(messages, len(result_json["images"]), engine)
+                            
+                            # Select frames based on available slots
+                            total_frames = len(result_json["images"])
+                            frame_interval = max(1, total_frames // available_slots)
+                            selected_frames = result_json["images"][::frame_interval][:available_slots]
+
+                            for image in selected_frames:
                                 image_message["content"].append({
                                     "type": "image_url",
                                     "image_url": {
