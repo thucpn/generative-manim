@@ -41,7 +41,7 @@ brew install cairo
 1. **Clone the repository:**
 
 ```bash
-git clone https://github.com/360macky/generative-manim.git
+git clone https://github.com/marcelo-earth/generative-manim.git
 ```
 
 2. **Install the requirements on the `/api` directory:**
