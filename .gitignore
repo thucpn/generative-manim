@@ -167,3 +167,5 @@ test.py
 temp_files/
 datasets/promit/API_Key.cfg
 .cursorrules
+api/routes/public/*
+.qodo

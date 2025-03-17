@@ -44,6 +44,58 @@ class Videos:
         response.raise_for_status()
         return response.json()
 
+    def generate(
+        self,
+        prompt: str,
+        engine: str = "anthropic",
+        model: str = "claude-3-7-sonnet-20250219"
+    ) -> Dict[str, Any]:
+        """
+        Generate a video from a text prompt using AI.
+
+        Args:
+            prompt (str): The text prompt describing the animation to create
+            engine (str, optional): The AI engine to use. Defaults to "anthropic"
+            model (str, optional): The AI model to use. Defaults to "claude-3-7-sonnet-20250219"
+
+        Returns:
+            Dict[str, Any]: The API response containing the request ID and status
+        """
+        response = requests.post(
+            f"{self.client.base_url}/v1/video/generation",
+            headers={
+                "Authorization": f"Bearer {self.client.api_key}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "prompt": prompt,
+                "engine": engine,
+                "model": model
+            }
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def retrieve(self, request_id: str) -> Dict[str, Any]:
+        """
+        Retrieve the status and result of a video generation request.
+
+        Args:
+            request_id (str): The ID of the generation request to check
+
+        Returns:
+            Dict[str, Any]: The API response containing the status and video URL if completed
+        """
+        response = requests.get(
+            f"{self.client.base_url}/v1/video/generation/status/{request_id}",
+            headers={
+                "Authorization": f"Bearer {self.client.api_key}",
+                "Content-Type": "application/json"
+            }
+        )
+        response.raise_for_status()
+        return response.json()
+
     def export(self, scenes: list, title_slug: str) -> Dict[str, Any]:
         """
         Export multiple scenes into a single video.
