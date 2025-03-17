@@ -1,4 +1,17 @@
-# Animo
+<p align="center">
+  <img
+    src="https://raw.githubusercontent.com/marcelo-earth/generative-manim/main/.github/logo.png"
+    align="center"
+    width="100"
+    alt="Animo"
+    title="Animo"
+  />
+  <h1 align="center">Animo</h1>
+</p>
+
+<p align="center">
+  🎨 Create animations from text using Manim under the hood ✨
+</p>
 
 <p align="center">
   <a href="https://animo.video">
@@ -10,19 +23,36 @@
   <a href="https://discord.com/invite/HkbYEGybGv">
     <img src="https://img.shields.io/static/v1?label=Discord&message=Community&color=5865F2&logo=discord&style=flat" />
   </a>
+  <a href="https://pypi.org/project/animo/">
+    <img src="https://img.shields.io/pypi/v/animo.svg?color=blue&logo=python&logoColor=white" />
+  </a>
 </p>
 
-## What is Animo?
+---
 
-Animo is a Python package that allows you to create animations from text using Manim under the hood. Visit [animo.video](https://animo.video) to learn more about the platform.
+## 🚀 What is Animo?
 
-## Installation
+Animo is a Python package that allows you to create animations from text using Manim under the hood. It's part of the [Generative Manim](https://github.com/marcelo-earth/generative-manim) suite of tools that enables anyone to create wonderful animations from text.
+
+Visit [animo.video](https://animo.video) to learn more about the platform and see examples of what you can create.
+
+## 📦 Installation
 
 ```bash
 pip install animo
 ```
 
-## Usage
+## 🔑 API Key
+
+To use Animo, you'll need an API key:
+
+1. Visit [https://animo.video/account/developer](https://animo.video/account/developer)
+2. Click on "Generate secret key"
+3. Copy your API key and use it in your code
+
+You'll also find quickstart guides and additional documentation on the developer page to help you get started.
+
+## 🔧 Usage
 
 ### Basic Usage
 
@@ -123,7 +153,7 @@ except Exception as e:
     print(f"\n\n❌ Error: {str(e)}")
 ```
 
-## Contributing
+## 🤝 Contributing
 
 We welcome contributions to Animo! Here's how to get started:
 
@@ -148,6 +178,6 @@ poetry install
 
 Join our [Discord community](https://discord.com/invite/HkbYEGybGv) to connect with other Animo users, share your creations, and get help.
 
-## License
+## 📄 License
 
 [MIT License](LICENSE)
