@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "animo"
-version = "0.1.2"
+version = "0.1.4"
 description = "Create animations from text using Manim"
 authors = ["Marcelo <team@animo.video>"]
 readme = "README.md"
@@ -18,13 +18,12 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.9.6,<3.13"
+python = ">=3.9.6"
 requests = "^2.31.0"
-manim = "0.18.0"
-manim-physics = "0.4.0"
 
 [build-system]
 requires = ["poetry-core"]
